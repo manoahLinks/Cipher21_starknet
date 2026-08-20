@@ -35,13 +35,15 @@ are the contract. No milestone starts before its entry criteria hold.
 
 Entry: none.
 
-- Scarb workspace at `cairo/`, `snforge` wired, `starknet 2.18.0`.
-- `web/` scaffolded from the STRK20 starter kit, deps pinned per plan §4.
-- CI: `scarb build`, `snforge test`, `next build`.
-- A real funded Sepolia account. Key lives in `.env` only, `.env` in
-  `.gitignore`, `.env.example` committed with placeholder values.
-- Read the live pool fee from Sepolia via `get_fee_amount` and record the number
-  in plan §11. **This number sets the chip denominations** — do not guess it.
+- [x] Scarb workspace at `cairo/`, `snforge` wired, `starknet 2.18.0`.
+- [x] `web/` scaffolded — Next 16.3.1, React 19, Tailwind 4, deps pinned per plan §4.
+- [x] CI: `scarb fmt --check`, `scarb build`, `snforge test`, `npm run typecheck`, `next build`.
+- [x] `.env.example` committed with placeholders; `.env` gitignored.
+- [x] Live pool parameters measured via `scripts/src/pool-fee.ts` and recorded in
+      plan §5 — **2 STRK per pool transaction on Sepolia, 6 STRK on mainnet**.
+      Buy-in tiers derived from it and tested in `cairo/.../constants.cairo`.
+- [ ] A real funded Sepolia account (see "Getting started" in the README). Yours
+      to create — it needs your browser for the faucet.
 
 Done when: CI is green on the branch, and the measured pool fee is written into
 the plan.

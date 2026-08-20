@@ -49,9 +49,18 @@ npm install @starknet-io/get-starknet-discovery@6.0.4 \
 
 ## 5. ⚠️ The pool fee changes the game design
 
-A **flat pool fee applies per private operation** — on the order of several STRK on mainnet at time of writing. Read it from the pool via `get_fee_amount` rather than assuming a number.
+A **flat pool fee applies per `apply_actions` call** — per private transaction, not per action inside it. Measured live on 2026-08-20 against pool version 2.0 with `scripts/src/pool-fee.ts`:
+
+| network | fee per pool tx | per session (2 tx) |
+|---|---|---|
+| Sepolia | **2 STRK** | 4 STRK |
+| Mainnet | **6 STRK** | **12 STRK** |
+
+Mainnet is three times the figure quoted in the STRK20 docs, so re-measure rather than trusting any written number — including this one. The pool owner can change it.
 
 The README's design puts **two pool operations per hand** (bet in, payout out) at fixed denominations of 10 / 50 / 100. At a flat multi-STRK fee, a 10-chip hand can cost more in fees than the stake. **That design is not viable as written.**
+
+At 6 STRK a transaction, a 10-chip hand would pay 12 STRK in fees to move 10 chips.
 
 **Required change — move to a session model:**
 
@@ -63,7 +72,9 @@ The README's design puts **two pool operations per hand** (bet in, payout out) a
 
 Two pool operations per *session* instead of per *hand*. This amortizes the fee, removes the ~10-block note-maturity wait from the inner loop, and matches how a real table works. Privacy is unchanged: the buy-in still breaks the wallet↔session link, which is the property that matters.
 
-Secondary consequence: raise denominations so a buy-in is meaningfully larger than the fee. Subtract the fee when pre-filling any "MAX" amount, or the operation fails after the user has already signed.
+Secondary consequence: the *buy-in* must be meaningfully larger than 12 STRK; the *bet* denominations are unconstrained, because hands cost no pool fee at all. Holding session fees under 5% of the smallest buy-in puts the floor at **500 chips**, with tiers at 500 / 1000 / 2500 — encoded and tested in `cairo/packages/cipher21/src/constants.cairo`. On mainnet that makes the minimum buy-in real money; flagged as a product decision, not a technical one.
+
+Subtract the fee when pre-filling any "MAX" amount, or the operation fails after the user has already signed.
 
 ## 6. Phase 1 — wallet connect + first shielded flow (buildable now)
 
@@ -117,7 +128,8 @@ Scope: no game logic. Prove the pool round-trip on Sepolia.
 
 ## 11. Open items to re-verify at build time
 
-- **Pool fee** via `get_fee_amount` — the number drives denominations and the session model in §5. Confirm before fixing buy-in sizes.
+- **Pool fee** — measured 2026-08-20 at 2 STRK (Sepolia) / 6 STRK (mainnet) per pool transaction. Re-run `npm run pool-fee -- mainnet` in `scripts/` before fixing mainnet buy-in sizes; the owner can change it.
+- **Proof validity is 450 blocks** on both networks (`get_proof_validity_blocks`) — comfortable, but the session cash-out must not assume a proof stays valid indefinitely.
 - `starknet` pin: 10.4.0 vs current `next` 10.7.0.
 - get-starknet 6.0.4 — moved from 6.0.3 during this plan's generation; check again.
 - Xverse dapp-facing Wallet API status.

@@ -27,7 +27,8 @@ at the table is yours.
 - [Contract surface (planned)](#contract-surface-planned)
 - [Card encoding — a real shoe](#card-encoding--a-real-shoe)
 - [Stack](#stack)
-- [Project structure (planned)](#project-structure-planned)
+- [Project structure](#project-structure)
+- [Getting started](#getting-started)
 - [Roadmap](#roadmap)
 - [Known limitations](#known-limitations)
 - [Prior art](#prior-art)
@@ -287,11 +288,11 @@ for the pitch.
 | Layer | Choice |
 |---|---|
 | Contracts | Cairo, `starknet` 2.18.0, Scarb workspace |
-| Tests | `snforge` |
+| Tests | `snforge` 0.63.0 |
 | Privacy | STRK20 pool — **Mainnet and Sepolia only** (no devnet pool) |
-| Wallet | `WalletAccountV6` via `starknet.js` 10.4.0 + `@starknet-io/get-starknet-discovery` 6.0.2 |
+| Wallet | `WalletAccountV6` via `starknet.js` 10.4.0 + `@starknet-io/get-starknet-discovery` 6.0.4 |
 | Privacy wallet | Ready (Xverse support landing) |
-| Frontend | Next.js 16, React 19, Tailwind 4, Framer Motion |
+| Frontend | Next.js 16.3.1, React 19.2, Tailwind 4 |
 | Base | [`strk20-starter-kit`](https://github.com/Akashneelesh/strk20-starter-kit) |
 
 The FHE build's frontend is Next 16 / React 19 / Tailwind 4, and the starter kit is
@@ -302,29 +303,78 @@ get *simpler*: they already operated on plaintext at settlement time.
 
 ---
 
-## Project structure (planned)
+## Project structure
+
+Checked boxes exist today; the rest arrive with the milestone that names them.
 
 ```
 .
-├── README.md                          ← you are here
-├── cairo/                             ← Scarb workspace
-│   ├── Scarb.toml
+├── README.md                             ← you are here
+├── STRK20_INTEGRATION_PLAN.md            ← route, privacy model, measured pool params
+├── MILESTONES.md                         ← the five feature branches
+├── cairo/                                ← Scarb workspace
+│   ├── Scarb.toml                        ✓ M0
+│   ├── snfoundry.toml                    ✓ M0
+│   └── packages/cipher21/
+│       ├── src/constants.cairo           ✓ M0  chips, buy-in tiers, fee headroom
+│       ├── src/table.cairo                 M1  Cipher21Table — settlement, then rules
+│       ├── src/anonymizer.cairo            M1  privacy_invoke helper (yours to audit)
+│       ├── src/deck.cairo                  M2  Merkle verify + card decoding
+│       ├── src/payout.cairo                M3  ported _computePayout / _effectiveTotal
+│       └── tests/                        ✓ M0  snforge suite
+├── house/                                  M2  shuffle + reveal service
+│   ├── shuffle.ts                             seeded Fisher-Yates, Merkle root
+│   └── reveal.ts                              per-card paths, encrypted to player
+├── web/                                  ✓ M0  Next 16 · React 19 · Tailwind 4
 │   └── src/
-│       ├── table.cairo                ← Cipher21Table — game state machine
-│       ├── anonymizer.cairo           ← privacy_invoke helper
-│       ├── deck.cairo                 ← Merkle verify + card decoding
-│       └── payout.cairo               ← ported _computePayout / _effectiveTotal
-├── house/                             ← shuffle + reveal service
-│   ├── shuffle.ts                     ← seeded Fisher-Yates, Merkle root
-│   └── reveal.ts                      ← per-card paths, encrypted to player
-├── web/                               ← Next.js frontend
-│   └── src/
-│       ├── app/
-│       ├── components/                ← ported from ../zama_hack/web
-│       └── lib/strk20.ts              ← wallet actions, denominations
+│       ├── app/                          ✓ M0
+│       ├── components/                     M4  ported from ../zama_hack/web
+│       └── lib/strk20.ts                   M4  wallet actions, denominations
 └── scripts/
-    └── money-loop.ts                  ← Milestone 1 spike
+    ├── src/config.ts                     ✓ M0  pool + token addresses, RPC
+    ├── src/pool-fee.ts                   ✓ M0  live pool parameters
+    └── src/money-loop.ts                   M1  buy in → settle → cash out, on Sepolia
 ```
+
+---
+
+## Getting started
+
+Toolchain — pinned in `.tool-versions`:
+
+```
+scarb 2.18.0      snforge/sncast 0.63.0      node 22
+```
+
+```bash
+cd cairo   && scarb build && snforge test     # contracts
+cd web     && npm ci && npm run build         # frontend
+cd scripts && npm ci && npm run pool-fee      # live pool parameters, Sepolia
+```
+
+`npm run pool-fee -- mainnet` reads mainnet. Run it before setting any amount:
+the pool charges a flat fee per transaction and that fee is what sets the buy-in
+floor. It was 2 STRK on Sepolia and 6 STRK on mainnet on 2026-08-20, and the pool
+owner can change it.
+
+### A Sepolia account
+
+Everything past M0 needs a funded Sepolia account to declare and deploy with.
+
+```bash
+cd cairo
+sncast account create --network sepolia --name cipher21-deployer
+# fund the printed address at https://starknet-faucet.vercel.app
+sncast account deploy --network sepolia --name cipher21-deployer
+```
+
+`sncast` keeps the key in `~/.starknet_accounts/`, outside this repo. Leave it
+there. Copy `.env.example` to `.env` for anything the scripts need — `.env` is
+gitignored and nothing secret belongs anywhere else.
+
+This is an ordinary Starknet account key. It is **not** a STRK20 viewing key —
+Cipher21 never handles one of those, and no part of this repo should ever ask a
+player for one.
 
 ---
 
