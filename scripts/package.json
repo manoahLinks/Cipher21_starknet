@@ -1,0 +1,19 @@
+{
+  "name": "cipher21-scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pool-fee": "tsx src/pool-fee.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "17.2.3",
+    "starknet": "10.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.2",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}

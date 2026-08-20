@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  --color-felt: #0b3d2e;
+  --color-felt-deep: #072a20;
+  --color-chip: #e8c56a;
+}
+
+body {
+  background: var(--color-felt-deep);
+  color: #f2efe6;
+}

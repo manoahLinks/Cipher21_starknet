@@ -27,7 +27,8 @@ at the table is yours.
 - [Contract surface (planned)](#contract-surface-planned)
 - [Card encoding — a real shoe](#card-encoding--a-real-shoe)
 - [Stack](#stack)
-- [Project structure (planned)](#project-structure-planned)
+- [Project structure](#project-structure)
+- [Getting started](#getting-started)
 - [Roadmap](#roadmap)
 - [Known limitations](#known-limitations)
 - [Prior art](#prior-art)
@@ -153,11 +154,14 @@ card.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Why the split.** STRK20 transactions carry a STARK proof: roughly **29 s** to
-generate, plus a **10-block maturity window** before a new note is spendable. That is
-fine for two transactions a hand. It would be unplayable if every `hit` went through
-the pool. So the pool handles **bet-in** and **payout-out** only; gameplay runs as
-ordinary fast Starknet transactions.
+**Why the split.** Every STRK20 transaction carries a STARK proof, and a new note
+needs a **10-block maturity window** before it is spendable. Proving is handled by
+hosted services in wallet flows and its latency is machine-dependent when
+self-hosted — either way it is far too slow to sit behind a `hit` button. A **flat
+pool fee** applies per private operation on top of that, large enough that a small
+stake can cost less than the fee to move. So the pool handles **buy-in** and
+**cash-out** only, once per session; gameplay runs as ordinary fast Starknet
+transactions. See [`STRK20_INTEGRATION_PLAN.md`](./STRK20_INTEGRATION_PLAN.md) §5.
 
 The pool also permits **at most one `invoke` per transaction**, and the outcome is
 unknown at bet time — so settlement is necessarily a second pool transaction. The
@@ -251,8 +255,8 @@ verify its caller is the pool.
 
 Bets are denominated in an ordinary Starknet ERC-20. **STRK20 shields any ERC-20**,
 so unlike the FHE build there is no need for a bespoke confidential token — the
-privacy comes from the pool, not the token. A faucet contract mirrors the C21
-`claim()` for frictionless onboarding.
+privacy comes from the pool, not the token. Chips are real STRK from the first
+milestone — this build ends on mainnet, so there is no play-money faucet.
 
 ---
 
@@ -284,11 +288,11 @@ for the pitch.
 | Layer | Choice |
 |---|---|
 | Contracts | Cairo, `starknet` 2.18.0, Scarb workspace |
-| Tests | `snforge` |
+| Tests | `snforge` 0.63.0 |
 | Privacy | STRK20 pool — **Mainnet and Sepolia only** (no devnet pool) |
-| Wallet | `WalletAccountV6` via `starknet.js` 10.4.0 + `@starknet-io/get-starknet-discovery` 6.0.2 |
+| Wallet | `WalletAccountV6` via `starknet.js` 10.4.0 + `@starknet-io/get-starknet-discovery` 6.0.4 |
 | Privacy wallet | Ready (Xverse support landing) |
-| Frontend | Next.js 16, React 19, Tailwind 4, Framer Motion |
+| Frontend | Next.js 16.3.1, React 19.2, Tailwind 4 |
 | Base | [`strk20-starter-kit`](https://github.com/Akashneelesh/strk20-starter-kit) |
 
 The FHE build's frontend is Next 16 / React 19 / Tailwind 4, and the starter kit is
@@ -299,52 +303,98 @@ get *simpler*: they already operated on plaintext at settlement time.
 
 ---
 
-## Project structure (planned)
+## Project structure
+
+Checked boxes exist today; the rest arrive with the milestone that names them.
 
 ```
 .
-├── README.md                          ← you are here
-├── cairo/                             ← Scarb workspace
-│   ├── Scarb.toml
+├── README.md                             ← you are here
+├── STRK20_INTEGRATION_PLAN.md            ← route, privacy model, measured pool params
+├── MILESTONES.md                         ← the five feature branches
+├── cairo/                                ← Scarb workspace
+│   ├── Scarb.toml                        ✓ M0
+│   ├── snfoundry.toml                    ✓ M0
+│   └── packages/cipher21/
+│       ├── src/constants.cairo           ✓ M0  chips, buy-in tiers, fee headroom
+│       ├── src/table.cairo                 M1  Cipher21Table — settlement, then rules
+│       ├── src/anonymizer.cairo            M1  privacy_invoke helper (yours to audit)
+│       ├── src/deck.cairo                  M2  Merkle verify + card decoding
+│       ├── src/payout.cairo                M3  ported _computePayout / _effectiveTotal
+│       └── tests/                        ✓ M0  snforge suite
+├── house/                                  M2  shuffle + reveal service
+│   ├── shuffle.ts                             seeded Fisher-Yates, Merkle root
+│   └── reveal.ts                              per-card paths, encrypted to player
+├── web/                                  ✓ M0  Next 16 · React 19 · Tailwind 4
 │   └── src/
-│       ├── table.cairo                ← Cipher21Table — game state machine
-│       ├── anonymizer.cairo           ← privacy_invoke helper
-│       ├── deck.cairo                 ← Merkle verify + card decoding
-│       ├── payout.cairo               ← ported _computePayout / _effectiveTotal
-│       └── faucet.cairo               ← chip faucet
-├── house/                             ← shuffle + reveal service
-│   ├── shuffle.ts                     ← seeded Fisher-Yates, Merkle root
-│   └── reveal.ts                      ← per-card paths, encrypted to player
-├── web/                               ← Next.js frontend
-│   └── src/
-│       ├── app/
-│       ├── components/                ← ported from ../zama_hack/web
-│       └── lib/strk20.ts              ← wallet actions, denominations
+│       ├── app/                          ✓ M0
+│       ├── components/                     M4  ported from ../zama_hack/web
+│       └── lib/strk20.ts                   M4  wallet actions, denominations
 └── scripts/
-    └── money-loop.ts                  ← Milestone 1 spike
+    ├── src/config.ts                     ✓ M0  pool + token addresses, RPC
+    ├── src/pool-fee.ts                   ✓ M0  live pool parameters
+    └── src/money-loop.ts                   M1  buy in → settle → cash out, on Sepolia
 ```
+
+---
+
+## Getting started
+
+Toolchain — pinned in `.tool-versions`:
+
+```
+scarb 2.18.0      snforge/sncast 0.63.0      node 22
+```
+
+```bash
+cd cairo   && scarb build && snforge test     # contracts
+cd web     && npm ci && npm run build         # frontend
+cd scripts && npm ci && npm run pool-fee      # live pool parameters, Sepolia
+```
+
+`npm run pool-fee -- mainnet` reads mainnet. Run it before setting any amount:
+the pool charges a flat fee per transaction and that fee is what sets the buy-in
+floor. It was 2 STRK on Sepolia and 6 STRK on mainnet on 2026-08-20, and the pool
+owner can change it.
+
+### A Sepolia account
+
+Everything past M0 needs a funded Sepolia account to declare and deploy with.
+
+```bash
+cd cairo
+sncast account create --network sepolia --name cipher21-deployer
+# fund the printed address at https://starknet-faucet.vercel.app
+sncast account deploy --network sepolia --name cipher21-deployer
+```
+
+`sncast` keeps the key in `~/.starknet_accounts/`, outside this repo. Leave it
+there. Copy `.env.example` to `.env` for anything the scripts need — `.env` is
+gitignored and nothing secret belongs anywhere else.
+
+This is an ordinary Starknet account key. It is **not** a STRK20 viewing key —
+Cipher21 never handles one of those, and no part of this repo should ever ask a
+player for one.
 
 ---
 
 ## Roadmap
 
-**Milestone 1 — the money loop.** *(nothing else until this works)*
-A minimal `Cipher21Anonymizer` plus a script that bets one fixed denomination out of
-the pool and credits a payout note back on Sepolia. No cards, no UI. This is the
-STRK20-specific path with the most unknowns — public withdraw leg, one invoke per
-transaction, note maturity, proving latency. Everything downstream assumes it works,
-so it gets proven first.
+Five feature branches, each ending in a deployed address or a recorded transaction
+hash. Full breakdown with entry criteria and definitions of done in
+[`MILESTONES.md`](./MILESTONES.md).
 
-**Milestone 2 — the deck.** Seeded shuffle, Merkle root, salted leaves, Cairo
-verifier. Tested standalone against known vectors.
+| | Branch | What lands |
+|---|---|---|
+| **M0** | `chore/scaffold` | Scarb + `snforge` + `web/`, CI, funded Sepolia account, live pool fee measured |
+| **M1** | `feat/money-loop` | Anonymizer + settlement core. Buy in, settle, cash out on Sepolia. *Nothing else starts until this works.* |
+| **M2** | `feat/deck` | Seeded shuffle, salted Merkle leaves, Cairo verifier, real house service |
+| **M3** | `feat/table` | Game state machine, dealer auto-play, ported payout math, house-timeout refund |
+| **M4** | `feat/web` | Wallet connect, capability detection, shielded balance, session UI |
+| **M5** | `feat/mainnet` | Audit gate, mainnet deploy, `strk20.json` complete |
 
-**Milestone 3 — the table.** Full game state machine, dealer auto-play, payout math
-ported from Solidity, `snforge` suite.
-
-**Milestone 4 — the frontend.** Port the Cipher21 UI, wire `strk20InvokeTransaction`,
-implement the pending states that a ~29 s proving wait demands.
-
-**Milestone 5 — polish.** Faucet, landing page, pitch.
+**No mocks.** The pool exists on Mainnet and Sepolia only, so every pool-touching
+path is tested on Sepolia against the real pool rather than stubbed.
 
 ---
 
@@ -359,10 +409,11 @@ implement the pending states that a ~29 s proving wait demands.
 - **The house is a live service.** It must be online to shuffle and reveal. An
   unresponsive house stalls a hand — needs a timeout-and-refund path so a player's
   stake is never trapped.
-- **~29 s proving, plus 10-block note maturity.** Two pool transactions a hand. The
-  UI must make the wait legible rather than hiding it behind a spinner.
-- **Mainnet and Sepolia only** — there is no devnet STRK20 pool, so local end-to-end
-  testing needs mocks for the pool leg.
+- **Proving latency, 10-block note maturity, and a flat per-operation pool fee.**
+  Two pool transactions per *session*, not per hand. The UI must make the wait
+  legible rather than hiding it behind a spinner.
+- **Mainnet and Sepolia only** — there is no devnet STRK20 pool, so the pool leg
+  cannot be exercised offline. Every flow that touches it is tested on Sepolia.
 - **Not audited.** Hackathon code. The anonymizer holds funds mid-transaction and is
   exactly the kind of contract that deserves an audit before real money.
 

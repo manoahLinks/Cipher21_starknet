@@ -1,0 +1,17 @@
+[workspace]
+members = ["packages/cipher21"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024_07"
+
+[workspace.dependencies]
+starknet = "2.18.0"
+snforge_std = "0.63.0"
+assert_macros = "2.18.0"
+
+[workspace.tool.scarb]
+allow-prebuilt-plugins = ["snforge_std"]
+
+[workspace.tool.fmt]
+sort-module-level-items = true

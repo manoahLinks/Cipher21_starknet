@@ -1,0 +1,5 @@
+[sncast.sepolia]
+url = "https://api.cartridge.gg/x/starknet/sepolia"
+
+[sncast.mainnet]
+url = "https://api.cartridge.gg/x/starknet/mainnet"
