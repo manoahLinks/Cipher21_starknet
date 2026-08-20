@@ -135,7 +135,8 @@ Scope: no game logic. Prove the pool round-trip on Sepolia.
 - Xverse dapp-facing Wallet API status.
 - Fee UX: wallet flows currently sponsor gas but not pool fees; shielded-token fee payment is still being designed.
 - Ready's consent-prompt behavior for `strk20Balances` before Phase 2 UI is finalized.
-- The house-timeout refund path from the README — still undesigned, and it strands a player's stake. Settle before Phase 3.
+- ~~The house-timeout refund path~~ — **designed and tested** in `Cipher21Table::refund_session`: after `SESSION_TIMEOUT_BLOCKS`, the session key can take the stake back without the house's cooperation.
+- **⚠️ Claim-signature replay — unresolved, blocks the anonymizer design.** A claim signature is public once submitted, and the anonymizer credits an open note to whichever private transaction invoked it. An observer could in principle replay a claim inside their own private transaction and take the note. Closing the session on first claim makes it a front-running race rather than an open hole, and Starknet exposes no public mempool today, but neither is a durable defence. Binding the signature to the pool-generated open-note id is the likely fix. Settle this before the anonymizer is written, and certainly before the audit.
 
 ## 12. Execution
 

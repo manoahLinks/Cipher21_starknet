@@ -5,14 +5,20 @@ edition.workspace = true
 
 [dependencies]
 starknet.workspace = true
+openzeppelin.workspace = true
+openzeppelin_interfaces.workspace = true
 
 [dev-dependencies]
 snforge_std.workspace = true
 assert_macros.workspace = true
+openzeppelin_presets.workspace = true
 
+# The table is tested against a real ERC-20 — OpenZeppelin's audited preset —
+# not a stand-in. Nothing in this repo is tested against a mock.
 [[target.starknet-contract]]
 sierra = true
 casm = true
+build-external-contracts = ["openzeppelin_presets::erc20::ERC20Upgradeable"]
 
 [scripts]
 test = "snforge test"

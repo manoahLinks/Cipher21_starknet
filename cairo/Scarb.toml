@@ -9,6 +9,9 @@ edition = "2024_07"
 starknet = "2.18.0"
 snforge_std = "0.63.0"
 assert_macros = "2.18.0"
+openzeppelin = "3.0.0"
+openzeppelin_interfaces = "2.1.0"
+openzeppelin_presets = "3.0.0"
 
 [workspace.tool.scarb]
 allow-prebuilt-plugins = ["snforge_std"]
