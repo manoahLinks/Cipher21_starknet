@@ -153,11 +153,14 @@ card.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Why the split.** STRK20 transactions carry a STARK proof: roughly **29 s** to
-generate, plus a **10-block maturity window** before a new note is spendable. That is
-fine for two transactions a hand. It would be unplayable if every `hit` went through
-the pool. So the pool handles **bet-in** and **payout-out** only; gameplay runs as
-ordinary fast Starknet transactions.
+**Why the split.** Every STRK20 transaction carries a STARK proof, and a new note
+needs a **10-block maturity window** before it is spendable. Proving is handled by
+hosted services in wallet flows and its latency is machine-dependent when
+self-hosted — either way it is far too slow to sit behind a `hit` button. A **flat
+pool fee** applies per private operation on top of that, large enough that a small
+stake can cost less than the fee to move. So the pool handles **buy-in** and
+**cash-out** only, once per session; gameplay runs as ordinary fast Starknet
+transactions. See [`STRK20_INTEGRATION_PLAN.md`](./STRK20_INTEGRATION_PLAN.md) §5.
 
 The pool also permits **at most one `invoke` per transaction**, and the outcome is
 unknown at bet time — so settlement is necessarily a second pool transaction. The
@@ -251,8 +254,8 @@ verify its caller is the pool.
 
 Bets are denominated in an ordinary Starknet ERC-20. **STRK20 shields any ERC-20**,
 so unlike the FHE build there is no need for a bespoke confidential token — the
-privacy comes from the pool, not the token. A faucet contract mirrors the C21
-`claim()` for frictionless onboarding.
+privacy comes from the pool, not the token. Chips are real STRK from the first
+milestone — this build ends on mainnet, so there is no play-money faucet.
 
 ---
 
@@ -310,8 +313,7 @@ get *simpler*: they already operated on plaintext at settlement time.
 │       ├── table.cairo                ← Cipher21Table — game state machine
 │       ├── anonymizer.cairo           ← privacy_invoke helper
 │       ├── deck.cairo                 ← Merkle verify + card decoding
-│       ├── payout.cairo               ← ported _computePayout / _effectiveTotal
-│       └── faucet.cairo               ← chip faucet
+│       └── payout.cairo               ← ported _computePayout / _effectiveTotal
 ├── house/                             ← shuffle + reveal service
 │   ├── shuffle.ts                     ← seeded Fisher-Yates, Merkle root
 │   └── reveal.ts                      ← per-card paths, encrypted to player
@@ -328,23 +330,21 @@ get *simpler*: they already operated on plaintext at settlement time.
 
 ## Roadmap
 
-**Milestone 1 — the money loop.** *(nothing else until this works)*
-A minimal `Cipher21Anonymizer` plus a script that bets one fixed denomination out of
-the pool and credits a payout note back on Sepolia. No cards, no UI. This is the
-STRK20-specific path with the most unknowns — public withdraw leg, one invoke per
-transaction, note maturity, proving latency. Everything downstream assumes it works,
-so it gets proven first.
+Five feature branches, each ending in a deployed address or a recorded transaction
+hash. Full breakdown with entry criteria and definitions of done in
+[`MILESTONES.md`](./MILESTONES.md).
 
-**Milestone 2 — the deck.** Seeded shuffle, Merkle root, salted leaves, Cairo
-verifier. Tested standalone against known vectors.
+| | Branch | What lands |
+|---|---|---|
+| **M0** | `chore/scaffold` | Scarb + `snforge` + `web/`, CI, funded Sepolia account, live pool fee measured |
+| **M1** | `feat/money-loop` | Anonymizer + settlement core. Buy in, settle, cash out on Sepolia. *Nothing else starts until this works.* |
+| **M2** | `feat/deck` | Seeded shuffle, salted Merkle leaves, Cairo verifier, real house service |
+| **M3** | `feat/table` | Game state machine, dealer auto-play, ported payout math, house-timeout refund |
+| **M4** | `feat/web` | Wallet connect, capability detection, shielded balance, session UI |
+| **M5** | `feat/mainnet` | Audit gate, mainnet deploy, `strk20.json` complete |
 
-**Milestone 3 — the table.** Full game state machine, dealer auto-play, payout math
-ported from Solidity, `snforge` suite.
-
-**Milestone 4 — the frontend.** Port the Cipher21 UI, wire `strk20InvokeTransaction`,
-implement the pending states that a ~29 s proving wait demands.
-
-**Milestone 5 — polish.** Faucet, landing page, pitch.
+**No mocks.** The pool exists on Mainnet and Sepolia only, so every pool-touching
+path is tested on Sepolia against the real pool rather than stubbed.
 
 ---
 
@@ -359,10 +359,11 @@ implement the pending states that a ~29 s proving wait demands.
 - **The house is a live service.** It must be online to shuffle and reveal. An
   unresponsive house stalls a hand — needs a timeout-and-refund path so a player's
   stake is never trapped.
-- **~29 s proving, plus 10-block note maturity.** Two pool transactions a hand. The
-  UI must make the wait legible rather than hiding it behind a spinner.
-- **Mainnet and Sepolia only** — there is no devnet STRK20 pool, so local end-to-end
-  testing needs mocks for the pool leg.
+- **Proving latency, 10-block note maturity, and a flat per-operation pool fee.**
+  Two pool transactions per *session*, not per hand. The UI must make the wait
+  legible rather than hiding it behind a spinner.
+- **Mainnet and Sepolia only** — there is no devnet STRK20 pool, so the pool leg
+  cannot be exercised offline. Every flow that touches it is tested on Sepolia.
 - **Not audited.** Hackathon code. The anonymizer holds funds mid-transaction and is
   exactly the kind of contract that deserves an audit before real money.
 
