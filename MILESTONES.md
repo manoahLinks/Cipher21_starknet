@@ -60,9 +60,13 @@ maturity, the fee, proving latency.
 
 Entry: M0 merged.
 
-- `cairo/src/table.cairo` — the **settlement core**, built for real and kept:
-  accepts a session buy-in, holds the stake, exposes `claim_payout(session_id)`.
-  Game rules arrive in M3; this is the same contract, not a placeholder.
+- [x] `cairo/packages/cipher21/src/table.cairo` — the **settlement core**, built
+  for real and kept. A session is owned by a STARK-curve **session key**, not an
+  address, so the table never learns which wallet is playing it. Buy-ins are
+  *measured* as a balance delta rather than pulled, because the pool's withdraw
+  leg arrives with no approval and no sender worth trusting. Includes the
+  house-timeout refund path, so an unresponsive house cannot strand a stake.
+  24 snforge tests against OpenZeppelin's real ERC-20, no mock token.
 - `cairo/src/anonymizer.cairo` — `Cipher21Anonymizer`, the `privacy_invoke`
   helper. Withdraw → `claim_payout` → re-shield. Nearest reference:
   `packages/vesu_lending_anonymizer` in
